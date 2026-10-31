@@ -29,25 +29,29 @@ document.getElementById('createBtn').onclick = async () => {
   showError('Pravim party...');
   const code = randomCode();
 
-  const { data, error } = await supabase.from('parties').insert({
-    code,
-    created_by: name
-  }).select().single();
+  try {
+    const { data, error } = await supabase.from('parties').insert({
+      code,
+      created_by: name
+    }).select().single();
 
-  if (error) return showError(error.message);
+    if (error) return showError('Greška party: ' + error.message);
 
-  const { data: member, error: mErr } = await supabase.from('members').insert({
-    party_id: data.id,
-    name,
-    last_cigarette: new Date().toISOString()
-  }).select().single();
+    const { data: member, error: mErr } = await supabase.from('members').insert({
+      party_id: data.id,
+      name,
+      last_cigarette: new Date().toISOString()
+    }).select().single();
 
-  if (mErr) return showError(mErr.message);
+    if (mErr) return showError('Greška member: ' + mErr.message);
 
-  me = member;
-  localStorage.setItem('qs_member', JSON.stringify(member));
-  localStorage.setItem('qs_party', code);
-  enterApp(code);
+    me = member;
+    localStorage.setItem('qs_member', JSON.stringify(member));
+    localStorage.setItem('qs_party', code);
+    enterApp(code);
+  } catch (e) {
+    showError('Greška: ' + e.message);
+  }
 };
 
 document.getElementById('joinBtn').onclick = async () => {
