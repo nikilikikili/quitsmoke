@@ -24,22 +24,41 @@ document.getElementById('loginBtn').onclick = async () => {
 
 document.getElementById('registerBtn').onclick = async () => {
   const username = document.getElementById('regUsername').value.trim();
-  const email = document.getElementById('regEmail').value;
+  const email = document.getElementById('regEmail').value.trim();
   const pass = document.getElementById('regPass').value;
+  
   if (!username) return showError('Unesi korisničko ime');
+  if (!email) return showError('Unesi email');
+  if (pass.length < 6) return showError('Lozinka mora imati najmanje 6 karaktera');
 
-  const { data, error } = await supabase.auth.signUp({ email, password: pass });
+  showError('Registrujem...');
+
+  const { data, error } = await supabase.auth.signUp({ 
+    email, 
+    password: pass,
+    options: {
+      data: { username }
+    }
+  });
+
   if (error) return showError(error.message);
 
   // Create profile
-  await supabase.from('profiles').insert({
-    id: data.user.id,
-    username,
-    last_cigarette: new Date().toISOString(),
-    cigs_per_day: 15,
-    cost_per_pack: 12
-  });
-  showError('Registracija uspješna! Provjeri email i prijavi se.');
+  if (data.user) {
+    const { error: profileError } = await supabase.from('profiles').insert({
+      id: data.user.id,
+      username,
+      last_cigarette: new Date().toISOString(),
+      cigs_per_day: 15,
+      cost_per_pack: 12
+    });
+    
+    if (profileError) {
+      console.log(profileError);
+    }
+  }
+
+  showError('Registracija uspješna! Provjeri email (i spam) za potvrdu, pa se prijavi.');
 };
 
 document.getElementById('logoutBtn').onclick = async () => {
