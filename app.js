@@ -29,14 +29,14 @@ document.getElementById('createBtn').onclick = async () => {
   const code = randomCode();
 
   try {
-    const { data, error } = await supabase.from('parties').insert({
+    const { data, error } = await sb.from('parties').insert({
       code,
       created_by: name
     }).select().single();
 
     if (error) return showError('Greška party: ' + error.message);
 
-    const { data: member, error: mErr } = await supabase.from('members').insert({
+    const { data: member, error: mErr } = await sb.from('members').insert({
       party_id: data.id,
       name,
       last_cigarette: new Date().toISOString()
@@ -60,10 +60,10 @@ document.getElementById('joinBtn').onclick = async () => {
 
   showError('Pridružujem se...');
 
-  const { data: party } = await supabase.from('parties').select('id').eq('code', code).single();
+  const { data: party } = await sb.from('parties').select('id').eq('code', code).single();
   if (!party) return showError('Party nije pronađen');
 
-  const { data: member, error } = await supabase.from('members').insert({
+  const { data: member, error } = await sb.from('members').insert({
     party_id: party.id,
     name,
     last_cigarette: new Date().toISOString()
@@ -124,7 +124,7 @@ function updateUI() {
 document.getElementById('logCigBtn').onclick = async () => {
   if (!confirm('Jesi li sigurna? Brojač će se resetovati.')) return;
   const now = new Date().toISOString();
-  await supabase.from('members').update({ last_cigarette: now }).eq('id', me.id);
+  await sb.from('members').update({ last_cigarette: now }).eq('id', me.id);
   me.last_cigarette = now;
   localStorage.setItem('qs_member', JSON.stringify(me));
   updateUI();
@@ -132,7 +132,7 @@ document.getElementById('logCigBtn').onclick = async () => {
 
 async function loadMembers() {
   if (!me) return;
-  const { data } = await supabase
+  const { data } = await sb
     .from('members')
     .select('*')
     .eq('party_id', me.party_id)
