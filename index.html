@@ -47,6 +47,7 @@
       </div>
       <div class="stats-grid">
         <div class="card stat"><div class="stat-value" id="cigsAvoided">0</div><div class="stat-label">Avoided</div></div>
+        <div class="card stat"><div class="stat-value" id="cigsSmoked">0</div><div class="stat-label">Smoked</div></div>
         <div class="card stat"><div class="stat-value" id="moneySaved">$0</div><div class="stat-label">Saved</div></div>
       </div>
       <button id="logCigBtn" class="danger">Log Cigarette</button>
@@ -148,17 +149,22 @@
         health < 0.7 ? 'Lungs look better!' : 'Lungs are healthy!';
       const cigs = Math.floor((seconds / 86400) * 15);
       document.getElementById('cigsAvoided').textContent = cigs;
+      document.getElementById('cigsSmoked').textContent = me.cigs_smoked || 0;
       document.getElementById('moneySaved').textContent = `$${(cigs / 20 * 12).toFixed(2)}`;
     }
 
     document.getElementById('logCigBtn').onclick = async () => {
-      if (!confirm('Log a cigarette? This will reset your timer.')) return;
       const now = new Date().toISOString();
-      await sb.from('members').update({ last_cigarette: now }).eq('id', me.id);
+      const { error } = await sb.from('members').update({ last_cigarette: now }).eq('id', me.id);
+      if (error) {
+        alert('Error: ' + error.message);
+        return;
+      }
       me.last_cigarette = now;
       localStorage.setItem('qs_member', JSON.stringify(me));
       updateUI();
       loadMembers();
+      alert('Cigarette logged. Timer reset.');
     };
 
     async function loadMembers() {
@@ -168,7 +174,7 @@
       (data || []).forEach(m => {
         const sec = m.last_cigarette ? Math.floor((Date.now() - new Date(m.last_cigarette)) / 1000) : 0;
         const lvl = Math.floor(sec / 43200) + 1;
-        list.innerHTML += `<div class="friend-item"><strong>${m.name}${m.id===me.id?' (you)':''}</strong><span>Level ${lvl}</span></div>`;
+        list.innerHTML += `<div class="friend-item"><strong>${m.name}${m.id===me.id?' (you)':''}</strong><span>Lv${lvl} · ${m.cigs_smoked||0} cigs</span></div>`;
       });
     }
 
