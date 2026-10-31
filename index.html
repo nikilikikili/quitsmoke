@@ -155,16 +155,18 @@
 
     document.getElementById('logCigBtn').onclick = async () => {
       const now = new Date().toISOString();
-      const { error } = await sb.from('members').update({ last_cigarette: now }).eq('id', me.id);
-      if (error) {
-        alert('Error: ' + error.message);
-        return;
-      }
+      const smoked = (me.cigs_smoked || 0) + 1;
+      
       me.last_cigarette = now;
+      me.cigs_smoked = smoked;
       localStorage.setItem('qs_member', JSON.stringify(me));
       updateUI();
       loadMembers();
-      alert('Cigarette logged. Timer reset.');
+
+      await sb.from('members').update({ 
+        last_cigarette: now, 
+        cigs_smoked: smoked 
+      }).eq('id', me.id);
     };
 
     async function loadMembers() {
@@ -172,6 +174,7 @@
       const list = document.getElementById('membersList');
       list.innerHTML = '';
       (data || []).forEach(m => {
+        if (m.id === me.id) m = { ...m, ...me };
         const sec = m.last_cigarette ? Math.floor((Date.now() - new Date(m.last_cigarette)) / 1000) : 0;
         const lvl = Math.floor(sec / 43200) + 1;
         list.innerHTML += `<div class="friend-item"><strong>${m.name}${m.id===me.id?' (you)':''}</strong><span>Lv${lvl} · ${m.cigs_smoked||0} cigs</span></div>`;
