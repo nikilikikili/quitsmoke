@@ -1,13 +1,9 @@
 <!DOCTYPE html>
-<html lang="bs">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>QuitSmoke</title>
-  <link rel="manifest" href="manifest.json" />
-  <meta name="theme-color" content="#0f766e" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <link rel="apple-touch-icon" href="icon-192.png" />
   <link rel="stylesheet" href="styles.css" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -15,22 +11,19 @@
   <div id="app">
     <section id="join" class="screen">
       <h1>QuitSmoke</h1>
-      <p class="tagline">Jedan dan u isto vrijeme</p>
-
+      <p class="tagline">One day at a time</p>
       <div class="tabs">
-        <button id="tabJoin" class="active">Pridruži se</button>
-        <button id="tabCreate">Napravi party</button>
+        <button id="tabJoin" class="active">Join</button>
+        <button id="tabCreate">Create Party</button>
       </div>
-
       <div id="joinForm">
-        <input type="text" id="joinCode" placeholder="Party kod (npr. 48291)" maxlength="6" />
-        <input type="text" id="joinName" placeholder="Tvoje ime" />
-        <button id="joinBtn">Uđi</button>
+        <input type="text" id="joinCode" placeholder="Party code" maxlength="6" />
+        <input type="text" id="joinName" placeholder="Your name" />
+        <button id="joinBtn">Join</button>
       </div>
-
       <div id="createForm" class="hidden">
-        <input type="text" id="createName" placeholder="Tvoje ime" />
-        <button id="createBtn">Napravi party</button>
+        <input type="text" id="createName" placeholder="Your name" />
+        <button id="createBtn">Create Party</button>
       </div>
       <p id="authError" class="error"></p>
     </section>
@@ -38,47 +31,153 @@
     <section id="dashboard" class="screen hidden">
       <header>
         <div>
-          <h2 id="welcome">Zdravo</h2>
-          <div id="partyCode">Kod: ----</div>
+          <h2 id="welcome">Hello</h2>
+          <div id="partyCode">Code: ----</div>
         </div>
-        <button id="logoutBtn" class="small">Izađi</button>
+        <button id="logoutBtn" class="small">Leave</button>
       </header>
-
       <div class="card hero">
-        <div class="label">Od zadnje cigarete</div>
+        <div class="label">Since last cigarette</div>
         <div id="timeCounter" class="big-number">0d 0h 0m</div>
         <div id="levelBadge">Level 1</div>
       </div>
-
       <div class="lungs-container">
-        <div class="lungs">
-          <div class="lung left"></div>
-          <div class="lung right"></div>
-        </div>
-        <p id="lungsStatus">Pluća se oporavljaju...</p>
+        <div class="lungs"><div class="lung left"></div><div class="lung right"></div></div>
+        <p id="lungsStatus">Lungs are recovering...</p>
       </div>
-
       <div class="stats-grid">
-        <div class="card stat">
-          <div class="stat-value" id="cigsAvoided">0</div>
-          <div class="stat-label">Izbjegnutih</div>
-        </div>
-        <div class="card stat">
-          <div class="stat-value" id="moneySaved">$0</div>
-          <div class="stat-label">Ušteđeno</div>
-        </div>
+        <div class="card stat"><div class="stat-value" id="cigsAvoided">0</div><div class="stat-label">Avoided</div></div>
+        <div class="card stat"><div class="stat-value" id="moneySaved">$0</div><div class="stat-label">Saved</div></div>
       </div>
-
-      <button id="logCigBtn" class="danger">Zapali sam cigaretu</button>
-
-      <div class="card">
-        <h3>Party</h3>
-        <div id="membersList"></div>
-      </div>
+      <button id="logCigBtn" class="danger">Log Cigarette</button>
+      <div class="card"><h3>Party</h3><div id="membersList"></div></div>
     </section>
   </div>
 
-  <script src="config.js"></script>
-  <script src="app.js"></script>
+  <script>
+    const SUPABASE_URL = 'https://imkmerweoklixurqbnmo.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_OgGSqZ7A1rmpDk-4b36ZWg_IpP2AG6w';
+    const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    let me = null;
+
+    document.getElementById('tabJoin').onclick = () => switchTab('join');
+    document.getElementById('tabCreate').onclick = () => switchTab('create');
+
+    function switchTab(tab) {
+      document.getElementById('tabJoin').classList.toggle('active', tab === 'join');
+      document.getElementById('tabCreate').classList.toggle('active', tab === 'create');
+      document.getElementById('joinForm').classList.toggle('hidden', tab !== 'join');
+      document.getElementById('createForm').classList.toggle('hidden', tab !== 'create');
+      document.getElementById('authError').textContent = '';
+    }
+
+    function showError(msg) {
+      document.getElementById('authError').textContent = msg;
+    }
+
+    function randomCode() {
+      return Math.floor(10000 + Math.random() * 90000).toString();
+    }
+
+    document.getElementById('createBtn').onclick = async () => {
+      const name = document.getElementById('createName').value.trim();
+      if (!name) return showError('Enter your name');
+      showError('Creating...');
+      const code = randomCode();
+      try {
+        const { data, error } = await sb.from('parties').insert({ code, created_by: name }).select().single();
+        if (error) return showError(error.message);
+        const { data: member, error: mErr } = await sb.from('members').insert({
+          party_id: data.id, name, last_cigarette: new Date().toISOString()
+        }).select().single();
+        if (mErr) return showError(mErr.message);
+        me = member;
+        localStorage.setItem('qs_member', JSON.stringify(member));
+        localStorage.setItem('qs_party', code);
+        enterApp(code);
+      } catch (e) { showError(e.message); }
+    };
+
+    document.getElementById('joinBtn').onclick = async () => {
+      const code = document.getElementById('joinCode').value.trim();
+      const name = document.getElementById('joinName').value.trim();
+      if (!code || !name) return showError('Enter code and name');
+      const { data: party } = await sb.from('parties').select('id').eq('code', code).single();
+      if (!party) return showError('Party not found');
+      const { data: member, error } = await sb.from('members').insert({
+        party_id: party.id, name, last_cigarette: new Date().toISOString()
+      }).select().single();
+      if (error) return showError(error.message);
+      me = member;
+      localStorage.setItem('qs_member', JSON.stringify(member));
+      localStorage.setItem('qs_party', code);
+      enterApp(code);
+    };
+
+    document.getElementById('logoutBtn').onclick = () => {
+      localStorage.removeItem('qs_member');
+      localStorage.removeItem('qs_party');
+      location.reload();
+    };
+
+    function enterApp(code) {
+      document.getElementById('join').classList.add('hidden');
+      document.getElementById('dashboard').classList.remove('hidden');
+      document.getElementById('welcome').textContent = `Hello, ${me.name}`;
+      document.getElementById('partyCode').textContent = `Code: ${code}`;
+      updateUI();
+      loadMembers();
+      setInterval(updateUI, 1000);
+    }
+
+    function updateUI() {
+      if (!me?.last_cigarette) return;
+      const seconds = Math.max(0, Math.floor((Date.now() - new Date(me.last_cigarette)) / 1000));
+      const d = Math.floor(seconds / 86400);
+      const h = Math.floor((seconds % 86400) / 3600);
+      const m = Math.floor((seconds % 3600) / 60);
+      document.getElementById('timeCounter').textContent = `${d}d ${h}h ${m}m`;
+      document.getElementById('levelBadge').textContent = `Level ${Math.floor(seconds / 43200) + 1}`;
+      const health = Math.min(1, seconds / 2592000);
+      document.querySelectorAll('.lung').forEach(l => {
+        l.style.opacity = 0.3 + health * 0.7;
+        l.style.background = health > 0.5 ? '#14b8a6' : '#ef4444';
+      });
+      document.getElementById('lungsStatus').textContent =
+        health < 0.3 ? 'Lungs are recovering...' :
+        health < 0.7 ? 'Lungs look better!' : 'Lungs are healthy!';
+      const cigs = Math.floor((seconds / 86400) * 15);
+      document.getElementById('cigsAvoided').textContent = cigs;
+      document.getElementById('moneySaved').textContent = `$${(cigs / 20 * 12).toFixed(2)}`;
+    }
+
+    document.getElementById('logCigBtn').onclick = async () => {
+      if (!confirm('Log a cigarette? This will reset your timer.')) return;
+      const now = new Date().toISOString();
+      await sb.from('members').update({ last_cigarette: now }).eq('id', me.id);
+      me.last_cigarette = now;
+      localStorage.setItem('qs_member', JSON.stringify(me));
+      updateUI();
+      loadMembers();
+    };
+
+    async function loadMembers() {
+      const { data } = await sb.from('members').select('*').eq('party_id', me.party_id);
+      const list = document.getElementById('membersList');
+      list.innerHTML = '';
+      (data || []).forEach(m => {
+        const sec = m.last_cigarette ? Math.floor((Date.now() - new Date(m.last_cigarette)) / 1000) : 0;
+        const lvl = Math.floor(sec / 43200) + 1;
+        list.innerHTML += `<div class="friend-item"><strong>${m.name}${m.id===me.id?' (you)':''}</strong><span>Level ${lvl}</span></div>`;
+      });
+    }
+
+    const saved = localStorage.getItem('qs_member');
+    const savedCode = localStorage.getItem('qs_party');
+    if (saved && savedCode) {
+      me = JSON.parse(saved);
+      enterApp(savedCode);
+    }
+  </script>
 </body>
 </html>
