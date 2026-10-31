@@ -46,12 +46,32 @@
         <p id="lungsStatus">Lungs are recovering...</p>
       </div>
       <div class="stats-grid">
-        <div class="card stat"><div class="stat-value" id="cigsAvoided">0</div><div class="stat-label">Avoided</div></div>
-        <div class="card stat"><div class="stat-value" id="cigsSmoked">0</div><div class="stat-label">Smoked</div></div>
+        <div class="card stat"><div class="stat-value" id="cigsToday">0</div><div class="stat-label">Today</div></div>
         <div class="card stat"><div class="stat-value" id="moneySaved">$0</div><div class="stat-label">Saved</div></div>
       </div>
       <button id="logCigBtn" class="danger">Log Cigarette</button>
-      <div class="card"><h3>Party</h3><div id="membersList"></div></div>
+      <div class="card">
+        <h3>Party</h3>
+        <p style="color:#94a3b8;font-size:0.85rem;margin-bottom:8px">Tap a member to see details</p>
+        <div id="membersList"></div>
+      </div>
+    </section>
+
+    <section id="detail" class="screen hidden">
+      <button id="backBtn" class="small" style="margin-bottom:16px">← Back</button>
+      <h2 id="detailName">Name</h2>
+      <div class="card hero">
+        <div class="label">Since last cigarette</div>
+        <div id="detailTime" class="big-number">0d 0h 0m</div>
+      </div>
+      <div class="lungs-container">
+        <div class="lungs"><div class="lung left"></div><div class="lung right"></div></div>
+        <p id="detailLungs">Lungs are recovering...</p>
+      </div>
+      <div class="card stat" style="margin-top:16px">
+        <div class="stat-value" id="detailToday">0</div>
+        <div class="stat-label">Cigarettes today</div>
+      </div>
     </section>
   </div>
 
@@ -60,9 +80,14 @@
     const SUPABASE_ANON_KEY = 'sb_publishable_OgGSqZ7A1rmpDk-4b36ZWg_IpP2AG6w';
     const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     let me = null;
+    let allMembers = [];
 
     document.getElementById('tabJoin').onclick = () => switchTab('join');
     document.getElementById('tabCreate').onclick = () => switchTab('create');
+    document.getElementById('backBtn').onclick = () => {
+      document.getElementById('detail').classList.add('hidden');
+      document.getElementById('dashboard').classList.remove('hidden');
+    };
 
     function switchTab(tab) {
       document.getElementById('tabJoin').classList.toggle('active', tab === 'join');
@@ -80,6 +105,10 @@
       return Math.floor(10000 + Math.random() * 90000).toString();
     }
 
+    function todayKey() {
+      return new Date().toISOString().slice(0, 10);
+    }
+
     document.getElementById('createBtn').onclick = async () => {
       const name = document.getElementById('createName').value.trim();
       if (!name) return showError('Enter your name');
@@ -89,7 +118,11 @@
         const { data, error } = await sb.from('parties').insert({ code, created_by: name }).select().single();
         if (error) return showError(error.message);
         const { data: member, error: mErr } = await sb.from('members').insert({
-          party_id: data.id, name, last_cigarette: new Date().toISOString()
+          party_id: data.id,
+          name,
+          last_cigarette: new Date().toISOString(),
+          cigs_today: 0,
+          day_key: todayKey()
         }).select().single();
         if (mErr) return showError(mErr.message);
         me = member;
@@ -106,7 +139,11 @@
       const { data: party } = await sb.from('parties').select('id').eq('code', code).single();
       if (!party) return showError('Party not found');
       const { data: member, error } = await sb.from('members').insert({
-        party_id: party.id, name, last_cigarette: new Date().toISOString()
+        party_id: party.id,
+        name,
+        last_cigarette: new Date().toISOString(),
+        cigs_today: 0,
+        day_key: todayKey()
       }).select().single();
       if (error) return showError(error.message);
       me = member;
@@ -129,56 +166,93 @@
       updateUI();
       loadMembers();
       setInterval(updateUI, 1000);
+      setInterval(loadMembers, 8000);
     }
 
-    function updateUI() {
-      if (!me?.last_cigarette) return;
-      const seconds = Math.max(0, Math.floor((Date.now() - new Date(me.last_cigarette)) / 1000));
+    function formatTime(iso) {
+      if (!iso) return '0d 0h 0m';
+      const seconds = Math.max(0, Math.floor((Date.now() - new Date(iso)) / 1000));
       const d = Math.floor(seconds / 86400);
       const h = Math.floor((seconds % 86400) / 3600);
       const m = Math.floor((seconds % 3600) / 60);
-      document.getElementById('timeCounter').textContent = `${d}d ${h}h ${m}m`;
+      return `${d}d ${h}h ${m}m`;
+    }
+
+    function updateUI() {
+      if (!me) return;
+      document.getElementById('timeCounter').textContent = formatTime(me.last_cigarette);
+      const seconds = me.last_cigarette ? Math.max(0, Math.floor((Date.now() - new Date(me.last_cigarette)) / 1000)) : 0;
       document.getElementById('levelBadge').textContent = `Level ${Math.floor(seconds / 43200) + 1}`;
       const health = Math.min(1, seconds / 2592000);
-      document.querySelectorAll('.lung').forEach(l => {
+      document.querySelectorAll('#dashboard .lung').forEach(l => {
         l.style.opacity = 0.3 + health * 0.7;
         l.style.background = health > 0.5 ? '#14b8a6' : '#ef4444';
       });
       document.getElementById('lungsStatus').textContent =
         health < 0.3 ? 'Lungs are recovering...' :
         health < 0.7 ? 'Lungs look better!' : 'Lungs are healthy!';
-      const cigs = Math.floor((seconds / 86400) * 15);
-      document.getElementById('cigsAvoided').textContent = cigs;
-      document.getElementById('cigsSmoked').textContent = me.cigs_smoked || 0;
-      document.getElementById('moneySaved').textContent = `$${(cigs / 20 * 12).toFixed(2)}`;
+      const today = me.day_key === todayKey() ? (me.cigs_today || 0) : 0;
+      document.getElementById('cigsToday').textContent = today;
+      const avoided = Math.floor((seconds / 86400) * 15);
+      document.getElementById('moneySaved').textContent = `$${(avoided / 20 * 12).toFixed(2)}`;
     }
 
     document.getElementById('logCigBtn').onclick = async () => {
       const now = new Date().toISOString();
-      const smoked = (me.cigs_smoked || 0) + 1;
-      
+      const key = todayKey();
+      let today = me.day_key === key ? (me.cigs_today || 0) : 0;
+      today += 1;
+
       me.last_cigarette = now;
-      me.cigs_smoked = smoked;
+      me.cigs_today = today;
+      me.day_key = key;
       localStorage.setItem('qs_member', JSON.stringify(me));
       updateUI();
       loadMembers();
 
-      await sb.from('members').update({ 
-        last_cigarette: now, 
-        cigs_smoked: smoked 
+      await sb.from('members').update({
+        last_cigarette: now,
+        cigs_today: today,
+        day_key: key
       }).eq('id', me.id);
     };
 
     async function loadMembers() {
+      if (!me) return;
       const { data } = await sb.from('members').select('*').eq('party_id', me.party_id);
+      allMembers = data || [];
       const list = document.getElementById('membersList');
       list.innerHTML = '';
-      (data || []).forEach(m => {
+      allMembers.forEach(m => {
         if (m.id === me.id) m = { ...m, ...me };
         const sec = m.last_cigarette ? Math.floor((Date.now() - new Date(m.last_cigarette)) / 1000) : 0;
         const lvl = Math.floor(sec / 43200) + 1;
-        list.innerHTML += `<div class="friend-item"><strong>${m.name}${m.id===me.id?' (you)':''}</strong><span>Lv${lvl} · ${m.cigs_smoked||0} cigs</span></div>`;
+        const today = m.day_key === todayKey() ? (m.cigs_today || 0) : 0;
+        const div = document.createElement('div');
+        div.className = 'friend-item';
+        div.style.cursor = 'pointer';
+        div.innerHTML = `<strong>${m.name}${m.id===me.id?' (you)':''}</strong><span>Lv${lvl} · ${today} today</span>`;
+        div.onclick = () => showDetail(m);
+        list.appendChild(div);
       });
+    }
+
+    function showDetail(m) {
+      document.getElementById('dashboard').classList.add('hidden');
+      document.getElementById('detail').classList.remove('hidden');
+      document.getElementById('detailName').textContent = m.name;
+      document.getElementById('detailTime').textContent = formatTime(m.last_cigarette);
+      const sec = m.last_cigarette ? Math.max(0, Math.floor((Date.now() - new Date(m.last_cigarette)) / 1000)) : 0;
+      const health = Math.min(1, sec / 2592000);
+      document.querySelectorAll('#detail .lung').forEach(l => {
+        l.style.opacity = 0.3 + health * 0.7;
+        l.style.background = health > 0.5 ? '#14b8a6' : '#ef4444';
+      });
+      document.getElementById('detailLungs').textContent =
+        health < 0.3 ? 'Lungs are recovering...' :
+        health < 0.7 ? 'Lungs look better!' : 'Lungs are healthy!';
+      const today = m.day_key === todayKey() ? (m.cigs_today || 0) : 0;
+      document.getElementById('detailToday').textContent = today;
     }
 
     const saved = localStorage.getItem('qs_member');
