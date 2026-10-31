@@ -1,161 +1,159 @@
-// QuitSmoke PWA
-const STORAGE_KEY = "quitsmoke_data";
+// QuitSmoke App Logic
+let currentUser = null;
+let profile = null;
 
-const healthMilestones = [
-  { time: 20 * 60, icon: "💨", title: "20 minutes", desc: "Blood pressure and heart rate normalize" },
-  { time: 8 * 3600, icon: "🩸", title: "8 hours", desc: "Oxygen levels rise and carbon monoxide drops" },
-  { time: 24 * 3600, icon: "❤️", title: "24 hours", desc: "Risk of heart attack begins to decrease" },
-  { time: 48 * 3600, icon: "👃", title: "48 hours", desc: "Sense of smell and taste improve" },
-  { time: 72 * 3600, icon: "🫁", title: "72 hours", desc: "Breathing becomes easier; bronchial tubes relax" },
-  { time: 2 * 7 * 86400, icon: "🚶", title: "2 weeks", desc: "Circulation improves; walking becomes easier" },
-  { time: 1 * 30 * 86400, icon: "💪", title: "1 month", desc: "Lung function improves up to 30%" },
-  { time: 1 * 365 * 86400, icon: "🎉", title: "1 year", desc: "Risk of heart disease cut in half" },
-];
+// === AUTH ===
+document.getElementById('tabLogin').onclick = () => switchTab('login');
+document.getElementById('tabRegister').onclick = () => switchTab('register');
 
-const tips = [
-  "Take 10 slow, deep breaths. In through the nose, out through the mouth.",
-  "Drink a glass of cold water slowly.",
-  "Go for a short walk — even 5 minutes helps.",
-  "Chew sugar-free gum or a carrot stick.",
-  "Call or text a friend who supports you.",
-  "Remind yourself why you quit. You've already come this far.",
-  "The craving will pass in a few minutes. You've got this.",
-  "Do 10 push-ups or squats to reset your body.",
-  "Play a game or watch a short video to distract yourself.",
-  "Write down one thing you're proud of about quitting."
-];
-
-const quotes = [
-  "Every cigarette you don't smoke is a victory.",
-  "You're not quitting forever. Just this one.",
-  "Your future self is thanking you right now.",
-  "The hardest part is behind you.",
-  "Cravings are temporary. Your health is permanent.",
-  "You are stronger than the urge.",
-  "One day at a time. One breath at a time."
-];
-
-let data = loadData();
-
-function loadData() {
-  const saved = localStorage.getItem(STORAGE_KEY);
-  if (saved) return JSON.parse(saved);
-  return null;
+function switchTab(tab) {
+  document.getElementById('tabLogin').classList.toggle('active', tab === 'login');
+  document.getElementById('tabRegister').classList.toggle('active', tab === 'register');
+  document.getElementById('loginForm').classList.toggle('hidden', tab !== 'login');
+  document.getElementById('registerForm').classList.toggle('hidden', tab !== 'register');
+  document.getElementById('authError').textContent = '';
 }
 
-function saveData() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+document.getElementById('loginBtn').onclick = async () => {
+  const email = document.getElementById('loginEmail').value;
+  const pass = document.getElementById('loginPass').value;
+  const { error } = await supabase.auth.signInWithPassword({ email, password: pass });
+  if (error) showError(error.message);
+  else loadApp();
+};
+
+document.getElementById('registerBtn').onclick = async () => {
+  const username = document.getElementById('regUsername').value.trim();
+  const email = document.getElementById('regEmail').value;
+  const pass = document.getElementById('regPass').value;
+  if (!username) return showError('Unesi korisničko ime');
+
+  const { data, error } = await supabase.auth.signUp({ email, password: pass });
+  if (error) return showError(error.message);
+
+  // Create profile
+  await supabase.from('profiles').insert({
+    id: data.user.id,
+    username,
+    last_cigarette: new Date().toISOString(),
+    cigs_per_day: 15,
+    cost_per_pack: 12
+  });
+  showError('Registracija uspješna! Provjeri email i prijavi se.');
+};
+
+document.getElementById('logoutBtn').onclick = async () => {
+  await supabase.auth.signOut();
+  location.reload();
+};
+
+function showError(msg) {
+  document.getElementById('authError').textContent = msg;
 }
 
-function showSetup() {
-  document.getElementById("setup").classList.remove("hidden");
-  document.getElementById("dashboard").classList.add("hidden");
-  if (data) {
-    const d = new Date(data.quitTimestamp);
-    document.getElementById("quitDate").value = d.toISOString().slice(0, 16);
-    document.getElementById("cigsPerDay").value = data.cigsPerDay;
-    document.getElementById("costPerPack").value = data.costPerPack;
-    document.getElementById("cigsPerPack").value = data.cigsPerPack;
-  }
-}
+// === APP ===
+async function loadApp() {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
 
-function showDashboard() {
-  document.getElementById("setup").classList.add("hidden");
-  document.getElementById("dashboard").classList.remove("hidden");
+  currentUser = user;
+  const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+  profile = data;
+
+  document.getElementById('auth').classList.add('hidden');
+  document.getElementById('dashboard').classList.remove('hidden');
+  document.getElementById('welcome').textContent = `Zdravo, ${profile?.username || 'korisniče'}`;
+
   updateUI();
+  loadFriends();
   setInterval(updateUI, 1000);
 }
 
-function startJourney() {
-  const quitDate = document.getElementById("quitDate").value;
-  if (!quitDate) {
-    alert("Please choose a quit date and time.");
-    return;
-  }
-  data = {
-    quitTimestamp: new Date(quitDate).getTime(),
-    cigsPerDay: Number(document.getElementById("cigsPerDay").value) || 15,
-    costPerPack: Number(document.getElementById("costPerPack").value) || 12,
-    cigsPerPack: Number(document.getElementById("cigsPerPack").value) || 20,
-  };
-  saveData();
-  showDashboard();
-}
-
 function updateUI() {
-  if (!data) return;
-  const now = Date.now();
-  const seconds = Math.max(0, Math.floor((now - data.quitTimestamp) / 1000));
+  if (!profile?.last_cigarette) return;
+  const last = new Date(profile.last_cigarette).getTime();
+  const seconds = Math.max(0, Math.floor((Date.now() - last) / 1000));
 
   const days = Math.floor(seconds / 86400);
   const hours = Math.floor((seconds % 86400) / 3600);
   const mins = Math.floor((seconds % 3600) / 60);
+  document.getElementById('timeCounter').textContent = `${days}d ${hours}h ${mins}m`;
 
-  document.getElementById("timeCounter").textContent = `${days}d ${hours}h ${mins}m`;
+  // Level every 12 hours
+  const level = Math.floor(seconds / (12 * 3600)) + 1;
+  document.getElementById('levelBadge').textContent = `Level ${level}`;
 
-  const quitDate = new Date(data.quitTimestamp);
-  document.getElementById("since").textContent = `Since ${quitDate.toLocaleDateString()} ${quitDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
+  const nextLevelIn = 12 * 3600 - (seconds % (12 * 3600));
+  const h = Math.floor(nextLevelIn / 3600);
+  const m = Math.floor((nextLevelIn % 3600) / 60);
+  document.getElementById('levelProgress').textContent = `Do levela ${level + 1}: ${h}h ${m}m`;
 
-  const cigsAvoided = Math.floor((seconds / 86400) * data.cigsPerDay);
-  document.getElementById("cigsAvoided").textContent = cigsAvoided.toLocaleString();
+  // Lungs visual
+  const health = Math.min(1, seconds / (30 * 86400)); // 30 days = fully healthy
+  document.querySelectorAll('.lung').forEach(l => {
+    l.style.opacity = 0.3 + health * 0.7;
+    l.style.background = health > 0.5 ? '#14b8a6' : '#ef4444';
+  });
+  document.getElementById('lungsStatus').textContent =
+    health < 0.3 ? 'Pluća se oporavljaju...' :
+    health < 0.7 ? 'Pluća izgledaju bolje!' : 'Pluća su zdrava!';
 
-  const packsAvoided = cigsAvoided / data.cigsPerPack;
-  const money = packsAvoided * data.costPerPack;
-  document.getElementById("moneySaved").textContent = `$${money.toFixed(2)}`;
-
-  renderMilestones(seconds);
-  document.getElementById("quote").textContent = quotes[Math.floor(Math.random() * quotes.length)];
+  // Stats
+  const cigs = Math.floor((seconds / 86400) * (profile.cigs_per_day || 15));
+  document.getElementById('cigsAvoided').textContent = cigs;
+  const money = (cigs / 20) * (profile.cost_per_pack || 12);
+  document.getElementById('moneySaved').textContent = `$${money.toFixed(2)}`;
 }
 
-function renderMilestones(seconds) {
-  const container = document.getElementById("healthMilestones");
-  container.innerHTML = "";
-  healthMilestones.forEach(m => {
-    const done = seconds >= m.time;
-    const div = document.createElement("div");
-    div.className = `milestone ${done ? "done" : ""}`;
-    div.innerHTML = `
-      <div class="milestone-icon">${m.icon}</div>
-      <div class="milestone-text">
-        <strong>${m.title}</strong><br>
-        <span style="color:#94a3b8;font-size:0.9rem">${m.desc}</span>
-      </div>
-    `;
-    container.appendChild(div);
+document.getElementById('logCigBtn').onclick = async () => {
+  if (!confirm('Jesi li sigurna da si zapalila cigaretu? Brojač će se resetovati.')) return;
+  const now = new Date().toISOString();
+  await supabase.from('profiles').update({ last_cigarette: now }).eq('id', currentUser.id);
+  profile.last_cigarette = now;
+  updateUI();
+};
+
+// === FRIENDS ===
+async function loadFriends() {
+  const { data } = await supabase
+    .from('friendships')
+    .select('friend_id, profiles!friendships_friend_id_fkey(username, last_cigarette)')
+    .eq('user_id', currentUser.id);
+
+  const list = document.getElementById('friendsList');
+  list.innerHTML = '';
+  if (!data || data.length === 0) {
+    list.innerHTML = '<p style="color:#94a3b8;text-align:center;padding:10px">Nema prijatelja</p>';
+    return;
+  }
+
+  data.forEach(f => {
+    const p = f.profiles;
+    const seconds = p.last_cigarette ? Math.floor((Date.now() - new Date(p.last_cigarette)) / 1000) : 0;
+    const level = Math.floor(seconds / (12 * 3600)) + 1;
+    const div = document.createElement('div');
+    div.className = 'friend-item';
+    div.innerHTML = `<strong>${p.username}</strong><span>Level ${level}</span>`;
+    list.appendChild(div);
   });
 }
 
-function showCravingHelp() {
-  const tip = tips[Math.floor(Math.random() * tips.length)];
-  document.getElementById("tipText").textContent = tip;
-  document.getElementById("cravingHelp").classList.remove("hidden");
-}
+document.getElementById('addFriendBtn').onclick = async () => {
+  const username = document.getElementById('friendUsername').value.trim();
+  if (!username) return;
 
-document.getElementById("startBtn").addEventListener("click", startJourney);
-document.getElementById("resetBtn").addEventListener("click", () => {
-  if (confirm("Reset all progress? This cannot be undone.")) {
-    localStorage.removeItem(STORAGE_KEY);
-    data = null;
-    showSetup();
-  }
+  const { data: friend } = await supabase.from('profiles').select('id').eq('username', username).single();
+  if (!friend) return alert('Korisnik nije pronađen');
+
+  await supabase.from('friendships').insert({
+    user_id: currentUser.id,
+    friend_id: friend.id
+  });
+  document.getElementById('friendUsername').value = '';
+  loadFriends();
+};
+
+// Check session on load
+supabase.auth.getSession().then(({ data: { session } }) => {
+  if (session) loadApp();
 });
-document.getElementById("cravingBtn").addEventListener("click", showCravingHelp);
-document.getElementById("closeTip").addEventListener("click", () => {
-  document.getElementById("cravingHelp").classList.add("hidden");
-});
-
-// Init
-if (data && data.quitTimestamp) {
-  showDashboard();
-} else {
-  showSetup();
-  // Default quit date = now
-  const now = new Date();
-  now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-  document.getElementById("quitDate").value = now.toISOString().slice(0, 16);
-}
-
-// Register service worker
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("service-worker.js").catch(() => {});
-}

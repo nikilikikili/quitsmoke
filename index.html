@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="bs">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
@@ -7,73 +7,88 @@
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#0f766e" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <link rel="apple-touch-icon" href="icon-192.png" />
   <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
   <div id="app">
-    <header>
+    <!-- AUTH SCREEN -->
+    <section id="auth" class="screen">
       <h1>QuitSmoke</h1>
-      <p class="tagline">One day at a time</p>
-    </header>
+      <p class="tagline">Jedan dan u isto vrijeme</p>
 
-    <section id="setup" class="card hidden">
-      <h2>Set Your Quit Details</h2>
-      <label>Quit date & time</label>
-      <input type="datetime-local" id="quitDate" />
+      <div class="tabs">
+        <button id="tabLogin" class="active">Prijava</button>
+        <button id="tabRegister">Registracija</button>
+      </div>
 
-      <label>Cigarettes per day (before quitting)</label>
-      <input type="number" id="cigsPerDay" value="15" min="1" max="100" />
+      <div id="loginForm">
+        <input type="email" id="loginEmail" placeholder="Email" />
+        <input type="password" id="loginPass" placeholder="Lozinka" />
+        <button id="loginBtn">Prijavi se</button>
+      </div>
 
-      <label>Cost per pack ($)</label>
-      <input type="number" id="costPerPack" value="12" min="1" step="0.5" />
-
-      <label>Cigarettes per pack</label>
-      <input type="number" id="cigsPerPack" value="20" min="1" />
-
-      <button id="startBtn">Start My Journey</button>
+      <div id="registerForm" class="hidden">
+        <input type="text" id="regUsername" placeholder="Korisničko ime" />
+        <input type="email" id="regEmail" placeholder="Email" />
+        <input type="password" id="regPass" placeholder="Lozinka" />
+        <button id="registerBtn">Registruj se</button>
+      </div>
+      <p id="authError" class="error"></p>
     </section>
 
-    <section id="dashboard" class="hidden">
-      <div class="hero card">
-        <div class="label">Smoke-free for</div>
+    <!-- DASHBOARD -->
+    <section id="dashboard" class="screen hidden">
+      <header>
+        <div>
+          <h2 id="welcome">Zdravo</h2>
+          <div id="levelBadge">Level 1</div>
+        </div>
+        <button id="logoutBtn" class="small">Odjava</button>
+      </header>
+
+      <div class="card hero">
+        <div class="label">Od zadnje cigarete</div>
         <div id="timeCounter" class="big-number">0d 0h 0m</div>
-        <div id="since" class="sub"></div>
+        <div id="levelProgress">Do sljedećeg levela: 12h</div>
+      </div>
+
+      <div class="lungs-container">
+        <div class="lungs" id="lungsVisual">
+          <div class="lung left"></div>
+          <div class="lung right"></div>
+        </div>
+        <p id="lungsStatus">Pluća se oporavljaju...</p>
       </div>
 
       <div class="stats-grid">
         <div class="card stat">
-          <div class="stat-value" id="moneySaved">$0</div>
-          <div class="stat-label">Money saved</div>
+          <div class="stat-value" id="cigsAvoided">0</div>
+          <div class="stat-label">Izbjegnutih cigareta</div>
         </div>
         <div class="card stat">
-          <div class="stat-value" id="cigsAvoided">0</div>
-          <div class="stat-label">Cigarettes avoided</div>
+          <div class="stat-value" id="moneySaved">$0</div>
+          <div class="stat-label">Ušteđeno</div>
         </div>
       </div>
 
+      <button id="logCigBtn" class="danger">Zapali sam cigaretu</button>
+
       <div class="card">
-        <h3>Health Progress</h3>
-        <div id="healthMilestones"></div>
+        <h3>Prijatelji</h3>
+        <div class="add-friend">
+          <input type="text" id="friendUsername" placeholder="Korisničko ime prijatelja" />
+          <button id="addFriendBtn">Dodaj</button>
+        </div>
+        <div id="friendsList"></div>
       </div>
 
-      <button id="cravingBtn" class="craving-btn">I'm having a craving</button>
-
-      <div id="cravingHelp" class="card hidden">
-        <h3>You've got this</h3>
-        <p id="tipText"></p>
-        <button id="closeTip">Close</button>
-      </div>
-
-      <div class="card quote-card">
-        <p id="quote">Loading...</p>
-      </div>
-
-      <button id="resetBtn" class="secondary">Reset / Change settings</button>
+      <button id="settingsBtn" class="secondary">Podešavanja</button>
     </section>
   </div>
 
+  <script src="config.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
