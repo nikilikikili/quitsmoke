@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>QuitSmoke</title>
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#0f766e" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="app">
+    <header>
+      <h1>QuitSmoke</h1>
+      <p class="tagline">One day at a time</p>
+    </header>
+
+    <section id="setup" class="card hidden">
+      <h2>Set Your Quit Details</h2>
+      <label>Quit date & time</label>
+      <input type="datetime-local" id="quitDate" />
+
+      <label>Cigarettes per day (before quitting)</label>
+      <input type="number" id="cigsPerDay" value="15" min="1" max="100" />
+
+      <label>Cost per pack ($)</label>
+      <input type="number" id="costPerPack" value="12" min="1" step="0.5" />
+
+      <label>Cigarettes per pack</label>
+      <input type="number" id="cigsPerPack" value="20" min="1" />
+
+      <button id="startBtn">Start My Journey</button>
+    </section>
+
+    <section id="dashboard" class="hidden">
+      <div class="hero card">
+        <div class="label">Smoke-free for</div>
+        <div id="timeCounter" class="big-number">0d 0h 0m</div>
+        <div id="since" class="sub"></div>
+      </div>
+
+      <div class="stats-grid">
+        <div class="card stat">
+          <div class="stat-value" id="moneySaved">$0</div>
+          <div class="stat-label">Money saved</div>
+        </div>
+        <div class="card stat">
+          <div class="stat-value" id="cigsAvoided">0</div>
+          <div class="stat-label">Cigarettes avoided</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Health Progress</h3>
+        <div id="healthMilestones"></div>
+      </div>
+
+      <button id="cravingBtn" class="craving-btn">I'm having a craving</button>
+
+      <div id="cravingHelp" class="card hidden">
+        <h3>You've got this</h3>
+        <p id="tipText"></p>
+        <button id="closeTip">Close</button>
+      </div>
+
+      <div class="card quote-card">
+        <p id="quote">Loading...</p>
+      </div>
+
+      <button id="resetBtn" class="secondary">Reset / Change settings</button>
+    </section>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
