@@ -2,13 +2,46 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>QuitSmoke</title>
   <link rel="stylesheet" href="styles.css" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    .avatar { width: 48px; height: 48px; border-radius: 50%; background: #334155; display: inline-block; vertical-align: middle; margin-right: 8px; position: relative; overflow: hidden; }
+    .avatar.big { width: 120px; height: 120px; margin: 0 auto 12px; display: block; }
+    .progress-bar { height: 8px; background: #1e293b; border-radius: 4px; margin-top: 6px; overflow: hidden; }
+    .progress-fill { height: 100%; background: #14b8a6; width: 0%; transition: width 0.3s; }
+    .shared-lungs { text-align: center; margin: 16px 0; }
+    .shared-lungs .big { font-size: 1.8rem; font-weight: 700; color: #14b8a6; }
+    .member-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #334155; cursor: pointer; }
+    .member-row:last-child { border-bottom: none; }
+    .admin-badge { background: #f59e0b; color: #000; font-size: 0.65rem; padding: 2px 6px; border-radius: 8px; margin-left: 6px; }
+    .btn-small { padding: 6px 12px; font-size: 0.85rem; }
+  </style>
 </head>
 <body>
   <div id="app">
+    <!-- AVATAR SETUP -->
+    <section id="avatarSetup" class="screen hidden">
+      <h1>Create Avatar</h1>
+      <p class="tagline">This will show next to your name</p>
+      <div id="avatarPreview" class="avatar big"></div>
+      <label>Gender</label>
+      <select id="avGender"><option value="female">Female</option><option value="male">Male</option></select>
+      <label>Age</label>
+      <select id="avAge"><option value="young">Young</option><option value="old">Older</option></select>
+      <label>Hair Style</label>
+      <select id="avHairStyle"><option value="straight">Straight</option><option value="curly">Curly</option><option value="bangs">Bangs</option></select>
+      <label>Hair Color</label>
+      <select id="avHairColor"><option value="#1f2937">Black</option><option value="#92400e">Brown</option><option value="#fbbf24">Blonde</option><option value="#ef4444">Red</option><option value="#6b7280">Gray</option></select>
+      <label>Eye Color</label>
+      <select id="avEyeColor"><option value="#1e3a8a">Blue</option><option value="#166534">Green</option><option value="#92400e">Brown</option><option value="#6b7280">Gray</option></select>
+      <label>Clothes Color</label>
+      <select id="avClothes"><option value="#0f766e">Teal</option><option value="#1d4ed8">Blue</option><option value="#be123c">Red</option><option value="#4b5563">Gray</option><option value="#7c3aed">Purple</option></select>
+      <button id="saveAvatarBtn" style="margin-top:16px">Continue</button>
+    </section>
+
+    <!-- JOIN / CREATE -->
     <section id="join" class="screen">
       <h1>QuitSmoke</h1>
       <p class="tagline">One day at a time</p>
@@ -26,8 +59,10 @@
         <button id="createBtn">Create Party</button>
       </div>
       <p id="authError" class="error"></p>
+      <button id="editAvatarBtn" class="small" style="margin-top:20px">Edit Avatar</button>
     </section>
 
+    <!-- DASHBOARD -->
     <section id="dashboard" class="screen hidden">
       <header>
         <div>
@@ -36,42 +71,54 @@
         </div>
         <button id="logoutBtn" class="small">Leave</button>
       </header>
+
+      <div class="shared-lungs card">
+        <div class="label">Shared Lungs</div>
+        <div id="sharedDays" class="big">0 days without cigarettes</div>
+        <div style="font-size:0.85rem;color:#94a3b8;margin-top:4px">Goal: 30 days. Anyone smoking resets it.</div>
+      </div>
+
       <div class="card hero">
         <div class="label">Since last cigarette</div>
         <div id="timeCounter" class="big-number">0d 0h 0m</div>
         <div id="levelBadge">Level 1</div>
+        <div class="progress-bar"><div id="xpBar" class="progress-fill"></div></div>
+        <div id="xpText" style="font-size:0.8rem;color:#94a3b8;margin-top:4px">0 / 100 XP</div>
       </div>
+
       <div class="lungs-container">
-        <div class="lungs"><div class="lung left"></div><div class="lung right"></div></div>
-        <p id="lungsStatus">Lungs are recovering...</p>
+        <div id="myAvatar" class="avatar big"></div>
+        <p id="avatarMood">Looking good!</p>
       </div>
+
       <div class="stats-grid">
         <div class="card stat"><div class="stat-value" id="cigsToday">0</div><div class="stat-label">Today</div></div>
-        <div class="card stat"><div class="stat-value" id="moneySaved">$0</div><div class="stat-label">Saved</div></div>
+        <div class="card stat"><div class="stat-value" id="xpDisplay">0</div><div class="stat-label">XP</div></div>
       </div>
+
       <button id="logCigBtn" class="danger">Log Cigarette</button>
+      <button id="resistBtn" style="margin-top:8px;background:#0f766e">I want to smoke but I won’t (+20 XP)</button>
+      <button id="undoBtn" class="small" style="margin-top:8px;background:#475569">Undo Last Cigarette</button>
+
       <div class="card">
         <h3>Party</h3>
-        <p style="color:#94a3b8;font-size:0.85rem;margin-bottom:8px">Tap a member to see details</p>
+        <p style="color:#94a3b8;font-size:0.85rem;margin-bottom:8px">Tap a member for details</p>
         <div id="membersList"></div>
       </div>
     </section>
 
+    <!-- DETAIL -->
     <section id="detail" class="screen hidden">
-      <button id="backBtn" class="small" style="margin-bottom:16px">← Back</button>
+      <button id="backBtn" class="small">← Back</button>
+      <div id="detailAvatar" class="avatar big"></div>
       <h2 id="detailName">Name</h2>
-      <div class="card hero">
+      <div class="card">
         <div class="label">Since last cigarette</div>
         <div id="detailTime" class="big-number">0d 0h 0m</div>
+        <div id="detailLevel">Level 1</div>
+        <div style="margin-top:8px">Today: <strong id="detailToday">0</strong> · XP: <strong id="detailXp">0</strong></div>
       </div>
-      <div class="lungs-container">
-        <div class="lungs"><div class="lung left"></div><div class="lung right"></div></div>
-        <p id="detailLungs">Lungs are recovering...</p>
-      </div>
-      <div class="card stat" style="margin-top:16px">
-        <div class="stat-value" id="detailToday">0</div>
-        <div class="stat-label">Cigarettes today</div>
-      </div>
+      <button id="removeBtn" class="danger" style="margin-top:16px;display:none">Remove from Party</button>
     </section>
   </div>
 
@@ -79,16 +126,78 @@
     const SUPABASE_URL = 'https://imkmerweoklixurqbnmo.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_OgGSqZ7A1rmpDk-4b36ZWg_IpP2AG6w';
     const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
     let me = null;
-    let allMembers = [];
+    let party = null;
+    let avatarConfig = JSON.parse(localStorage.getItem('qs_avatar') || '{"gender":"female","age":"young","hairStyle":"straight","hairColor":"#1f2937","eyeColor":"#1e3a8a","clothes":"#0f766e"}');
+
+    const XP_PER_LEVEL = 100;
+
+    function todayKey() { return new Date().toISOString().slice(0, 10); }
+    function randomCode() { return Math.floor(10000 + Math.random() * 90000).toString(); }
+    function getToken() {
+      let t = localStorage.getItem('qs_token');
+      if (!t) { t = crypto.randomUUID(); localStorage.setItem('qs_token', t); }
+      return t;
+    }
+
+    function renderAvatar(el, cfg, mood = 'good') {
+      if (!el || !cfg) return;
+      const skin = cfg.age === 'old' ? '#d4a574' : '#f3c7a0';
+      const hair = cfg.hairColor || '#1f2937';
+      const eye = cfg.eyeColor || '#1e3a8a';
+      const clothes = cfg.clothes || '#0f766e';
+      const isMale = cfg.gender === 'male';
+      const hairPath = cfg.hairStyle === 'curly'
+        ? `M20 35 Q10 20 25 15 Q40 10 50 20 Q60 10 75 15 Q90 20 80 35`
+        : cfg.hairStyle === 'bangs'
+        ? `M15 40 Q30 10 50 15 Q70 10 85 40 L80 50 L20 50 Z`
+        : `M20 40 Q30 15 50 18 Q70 15 80 40 L75 55 L25 55 Z`;
+
+      const sad = mood === 'sad';
+      const eyeY = sad ? 42 : 38;
+      const mouth = sad ? 'M35 58 Q50 52 65 58' : 'M35 55 Q50 62 65 55';
+
+      el.innerHTML = `<svg viewBox="0 0 100 100" width="100%" height="100%">
+        <ellipse cx="50" cy="85" rx="35" ry="20" fill="${clothes}"/>
+        <ellipse cx="50" cy="48" rx="28" ry="32" fill="${skin}"/>
+        <path d="${hairPath}" fill="${hair}"/>
+        <circle cx="38" cy="${eyeY}" r="4" fill="${eye}"/>
+        <circle cx="62" cy="${eyeY}" r="4" fill="${eye}"/>
+        <path d="${mouth}" stroke="#333" stroke-width="2" fill="none"/>
+        ${sad ? '<circle cx="50" cy="30" r="3" fill="#ef4444" opacity="0.6"/>' : ''}
+      </svg>`;
+    }
+
+    function updateAvatarPreview() {
+      avatarConfig = {
+        gender: document.getElementById('avGender').value,
+        age: document.getElementById('avAge').value,
+        hairStyle: document.getElementById('avHairStyle').value,
+        hairColor: document.getElementById('avHairColor').value,
+        eyeColor: document.getElementById('avEyeColor').value,
+        clothes: document.getElementById('avClothes').value
+      };
+      renderAvatar(document.getElementById('avatarPreview'), avatarConfig);
+    }
+
+    ['avGender','avAge','avHairStyle','avHairColor','avEyeColor','avClothes'].forEach(id => {
+      document.getElementById(id).onchange = updateAvatarPreview;
+    });
+
+    document.getElementById('editAvatarBtn').onclick = () => {
+      document.getElementById('join').classList.add('hidden');
+      document.getElementById('avatarSetup').classList.remove('hidden');
+      updateAvatarPreview();
+    };
+    document.getElementById('saveAvatarBtn').onclick = () => {
+      localStorage.setItem('qs_avatar', JSON.stringify(avatarConfig));
+      document.getElementById('avatarSetup').classList.add('hidden');
+      document.getElementById('join').classList.remove('hidden');
+    };
 
     document.getElementById('tabJoin').onclick = () => switchTab('join');
     document.getElementById('tabCreate').onclick = () => switchTab('create');
-    document.getElementById('backBtn').onclick = () => {
-      document.getElementById('detail').classList.add('hidden');
-      document.getElementById('dashboard').classList.remove('hidden');
-    };
-
     function switchTab(tab) {
       document.getElementById('tabJoin').classList.toggle('active', tab === 'join');
       document.getElementById('tabCreate').classList.toggle('active', tab === 'create');
@@ -96,39 +205,27 @@
       document.getElementById('createForm').classList.toggle('hidden', tab !== 'create');
       document.getElementById('authError').textContent = '';
     }
-
-    function showError(msg) {
-      document.getElementById('authError').textContent = msg;
-    }
-
-    function randomCode() {
-      return Math.floor(10000 + Math.random() * 90000).toString();
-    }
-
-    function todayKey() {
-      return new Date().toISOString().slice(0, 10);
-    }
+    function showError(msg) { document.getElementById('authError').textContent = msg; }
 
     document.getElementById('createBtn').onclick = async () => {
       const name = document.getElementById('createName').value.trim();
       if (!name) return showError('Enter your name');
       showError('Creating...');
       const code = randomCode();
+      const token = getToken();
       try {
-        const { data, error } = await sb.from('parties').insert({ code, created_by: name }).select().single();
+        const { data: p, error } = await sb.from('parties').insert({ code, created_by: name, clean_days: 0 }).select().single();
         if (error) return showError(error.message);
-        const { data: member, error: mErr } = await sb.from('members').insert({
-          party_id: data.id,
-          name,
-          last_cigarette: new Date().toISOString(),
-          cigs_today: 0,
-          day_key: todayKey()
+        const { data: m, error: mErr } = await sb.from('members').insert({
+          party_id: p.id, name, member_token: token, is_admin: true,
+          last_cigarette: new Date().toISOString(), xp: 0, cigs_today: 0, day_key: todayKey(),
+          avatar: avatarConfig
         }).select().single();
         if (mErr) return showError(mErr.message);
-        me = member;
-        localStorage.setItem('qs_member', JSON.stringify(member));
+        me = m; party = p;
+        localStorage.setItem('qs_member', JSON.stringify(m));
         localStorage.setItem('qs_party', code);
-        enterApp(code);
+        enterApp();
       } catch (e) { showError(e.message); }
     };
 
@@ -136,20 +233,43 @@
       const code = document.getElementById('joinCode').value.trim();
       const name = document.getElementById('joinName').value.trim();
       if (!code || !name) return showError('Enter code and name');
-      const { data: party } = await sb.from('parties').select('id').eq('code', code).single();
-      if (!party) return showError('Party not found');
-      const { data: member, error } = await sb.from('members').insert({
-        party_id: party.id,
-        name,
-        last_cigarette: new Date().toISOString(),
-        cigs_today: 0,
-        day_key: todayKey()
+      showError('Joining...');
+      const token = getToken();
+      const { data: p } = await sb.from('parties').select('*').eq('code', code).single();
+      if (!p) return showError('Party not found');
+
+      // Try rejoin by token
+      let { data: existing } = await sb.from('members').select('*').eq('party_id', p.id).eq('member_token', token).single();
+      if (existing) {
+        me = existing; party = p;
+        localStorage.setItem('qs_member', JSON.stringify(me));
+        localStorage.setItem('qs_party', code);
+        enterApp();
+        return;
+      }
+
+      // Try by name (rejoin)
+      const { data: byName } = await sb.from('members').select('*').eq('party_id', p.id).eq('name', name).maybeSingle();
+      if (byName) {
+        await sb.from('members').update({ member_token: token, avatar: avatarConfig }).eq('id', byName.id);
+        me = { ...byName, member_token: token, avatar: avatarConfig };
+        party = p;
+        localStorage.setItem('qs_member', JSON.stringify(me));
+        localStorage.setItem('qs_party', code);
+        enterApp();
+        return;
+      }
+
+      const { data: m, error } = await sb.from('members').insert({
+        party_id: p.id, name, member_token: token, is_admin: false,
+        last_cigarette: new Date().toISOString(), xp: 0, cigs_today: 0, day_key: todayKey(),
+        avatar: avatarConfig
       }).select().single();
       if (error) return showError(error.message);
-      me = member;
-      localStorage.setItem('qs_member', JSON.stringify(member));
+      me = m; party = p;
+      localStorage.setItem('qs_member', JSON.stringify(me));
       localStorage.setItem('qs_party', code);
-      enterApp(code);
+      enterApp();
     };
 
     document.getElementById('logoutBtn').onclick = () => {
@@ -158,80 +278,109 @@
       location.reload();
     };
 
-    function enterApp(code) {
+    function enterApp() {
       document.getElementById('join').classList.add('hidden');
       document.getElementById('dashboard').classList.remove('hidden');
       document.getElementById('welcome').textContent = `Hello, ${me.name}`;
-      document.getElementById('partyCode').textContent = `Code: ${code}`;
-      updateUI();
-      loadMembers();
-      setInterval(updateUI, 1000);
-      setInterval(loadMembers, 8000);
+      document.getElementById('partyCode').textContent = `Code: ${localStorage.getItem('qs_party')}`;
+      updateAll();
+      setInterval(updateAll, 5000);
     }
 
     function formatTime(iso) {
       if (!iso) return '0d 0h 0m';
-      const seconds = Math.max(0, Math.floor((Date.now() - new Date(iso)) / 1000));
-      const d = Math.floor(seconds / 86400);
-      const h = Math.floor((seconds % 86400) / 3600);
-      const m = Math.floor((seconds % 3600) / 60);
-      return `${d}d ${h}h ${m}m`;
+      const s = Math.max(0, Math.floor((Date.now() - new Date(iso)) / 1000));
+      return `${Math.floor(s/86400)}d ${Math.floor((s%86400)/3600)}h ${Math.floor((s%3600)/60)}m`;
     }
 
-    function updateUI() {
+    function getLevel(xp) { return Math.floor((xp || 0) / XP_PER_LEVEL) + 1; }
+    function getXpInLevel(xp) { return (xp || 0) % XP_PER_LEVEL; }
+
+    async function updateAll() {
       if (!me) return;
+      // Refresh me and party
+      const { data: freshMe } = await sb.from('members').select('*').eq('id', me.id).single();
+      if (freshMe) me = freshMe;
+      const { data: freshParty } = await sb.from('parties').select('*').eq('id', me.party_id).single();
+      if (freshParty) party = freshParty;
+
+      // Hourly XP (simple: award once per hour based on last update)
+      const hours = me.last_cigarette ? Math.floor((Date.now() - new Date(me.last_cigarette)) / 3600000) : 0;
+      // We don't auto-award here to avoid double counting; user can resist for XP
+
       document.getElementById('timeCounter').textContent = formatTime(me.last_cigarette);
-      const seconds = me.last_cigarette ? Math.max(0, Math.floor((Date.now() - new Date(me.last_cigarette)) / 1000)) : 0;
-      document.getElementById('levelBadge').textContent = `Level ${Math.floor(seconds / 43200) + 1}`;
-      const health = Math.min(1, seconds / 2592000);
-      document.querySelectorAll('#dashboard .lung').forEach(l => {
-        l.style.opacity = 0.3 + health * 0.7;
-        l.style.background = health > 0.5 ? '#14b8a6' : '#ef4444';
-      });
-      document.getElementById('lungsStatus').textContent =
-        health < 0.3 ? 'Lungs are recovering...' :
-        health < 0.7 ? 'Lungs look better!' : 'Lungs are healthy!';
+      const level = getLevel(me.xp);
+      document.getElementById('levelBadge').textContent = `Level ${level}`;
+      const xpIn = getXpInLevel(me.xp);
+      document.getElementById('xpBar').style.width = `${(xpIn / XP_PER_LEVEL) * 100}%`;
+      document.getElementById('xpText').textContent = `${xpIn} / ${XP_PER_LEVEL} XP`;
+      document.getElementById('xpDisplay').textContent = me.xp || 0;
+
       const today = me.day_key === todayKey() ? (me.cigs_today || 0) : 0;
       document.getElementById('cigsToday').textContent = today;
-      const avoided = Math.floor((seconds / 86400) * 15);
-      document.getElementById('moneySaved').textContent = `$${(avoided / 20 * 12).toFixed(2)}`;
+
+      const mood = today > 3 || (me.last_cigarette && (Date.now() - new Date(me.last_cigarette)) < 3600000) ? 'sad' : 'good';
+      renderAvatar(document.getElementById('myAvatar'), me.avatar || avatarConfig, mood);
+      document.getElementById('avatarMood').textContent = mood === 'sad' ? 'Looking tired...' : 'Looking better!';
+
+      document.getElementById('sharedDays').textContent = `${party?.clean_days || 0} days without cigarettes`;
+
+      loadMembers();
     }
 
     document.getElementById('logCigBtn').onclick = async () => {
+      if (!confirm('Log a cigarette? This resets the shared lungs and costs 25 XP.')) return;
       const now = new Date().toISOString();
       const key = todayKey();
       let today = me.day_key === key ? (me.cigs_today || 0) : 0;
       today += 1;
-
-      me.last_cigarette = now;
-      me.cigs_today = today;
-      me.day_key = key;
-      localStorage.setItem('qs_member', JSON.stringify(me));
-      updateUI();
-      loadMembers();
+      const newXp = Math.max(0, (me.xp || 0) - 25);
 
       await sb.from('members').update({
-        last_cigarette: now,
-        cigs_today: today,
-        day_key: key
+        last_cigarette: now, cigs_today: today, day_key: key, xp: newXp
       }).eq('id', me.id);
+
+      await sb.from('parties').update({ clean_days: 0, last_smoke: now }).eq('id', me.party_id);
+
+      me.xp = newXp; me.cigs_today = today; me.day_key = key; me.last_cigarette = now;
+      localStorage.setItem('qs_member', JSON.stringify(me));
+      updateAll();
+    };
+
+    document.getElementById('resistBtn').onclick = async () => {
+      const newXp = (me.xp || 0) + 20;
+      await sb.from('members').update({ xp: newXp }).eq('id', me.id);
+      me.xp = newXp;
+      localStorage.setItem('qs_member', JSON.stringify(me));
+      alert('+20 XP for resisting!');
+      updateAll();
+    };
+
+    document.getElementById('undoBtn').onclick = async () => {
+      if ((me.cigs_today || 0) <= 0) return alert('Nothing to undo today.');
+      const today = me.cigs_today - 1;
+      const newXp = (me.xp || 0) + 25;
+      await sb.from('members').update({ cigs_today: today, xp: newXp }).eq('id', me.id);
+      me.cigs_today = today; me.xp = newXp;
+      localStorage.setItem('qs_member', JSON.stringify(me));
+      updateAll();
     };
 
     async function loadMembers() {
-      if (!me) return;
-      const { data } = await sb.from('members').select('*').eq('party_id', me.party_id);
-      allMembers = data || [];
+      const { data } = await sb.from('members').select('*').eq('party_id', me.party_id).order('name');
       const list = document.getElementById('membersList');
       list.innerHTML = '';
-      allMembers.forEach(m => {
-        if (m.id === me.id) m = { ...m, ...me };
-        const sec = m.last_cigarette ? Math.floor((Date.now() - new Date(m.last_cigarette)) / 1000) : 0;
-        const lvl = Math.floor(sec / 43200) + 1;
-        const today = m.day_key === todayKey() ? (m.cigs_today || 0) : 0;
+      (data || []).forEach(m => {
         const div = document.createElement('div');
-        div.className = 'friend-item';
-        div.style.cursor = 'pointer';
-        div.innerHTML = `<strong>${m.name}${m.id===me.id?' (you)':''}</strong><span>Lv${lvl} · ${today} today</span>`;
+        div.className = 'member-row';
+        const av = document.createElement('div');
+        av.className = 'avatar';
+        renderAvatar(av, m.avatar || {}, m.cigs_today > 2 ? 'sad' : 'good');
+        const info = document.createElement('div');
+        info.style.flex = '1';
+        info.innerHTML = `<strong>${m.name}</strong>${m.is_admin ? '<span class="admin-badge">Admin</span>' : ''}<br><span style="font-size:0.8rem;color:#94a3b8">Lv${getLevel(m.xp)} · ${(m.day_key===todayKey()?m.cigs_today:0)||0} today · ${m.xp||0} XP</span>`;
+        div.appendChild(av);
+        div.appendChild(info);
         div.onclick = () => showDetail(m);
         list.appendChild(div);
       });
@@ -241,25 +390,33 @@
       document.getElementById('dashboard').classList.add('hidden');
       document.getElementById('detail').classList.remove('hidden');
       document.getElementById('detailName').textContent = m.name;
+      renderAvatar(document.getElementById('detailAvatar'), m.avatar || {}, 'good');
       document.getElementById('detailTime').textContent = formatTime(m.last_cigarette);
-      const sec = m.last_cigarette ? Math.max(0, Math.floor((Date.now() - new Date(m.last_cigarette)) / 1000)) : 0;
-      const health = Math.min(1, sec / 2592000);
-      document.querySelectorAll('#detail .lung').forEach(l => {
-        l.style.opacity = 0.3 + health * 0.7;
-        l.style.background = health > 0.5 ? '#14b8a6' : '#ef4444';
-      });
-      document.getElementById('detailLungs').textContent =
-        health < 0.3 ? 'Lungs are recovering...' :
-        health < 0.7 ? 'Lungs look better!' : 'Lungs are healthy!';
-      const today = m.day_key === todayKey() ? (m.cigs_today || 0) : 0;
-      document.getElementById('detailToday').textContent = today;
+      document.getElementById('detailLevel').textContent = `Level ${getLevel(m.xp)}`;
+      document.getElementById('detailToday').textContent = (m.day_key === todayKey() ? m.cigs_today : 0) || 0;
+      document.getElementById('detailXp').textContent = m.xp || 0;
+      const removeBtn = document.getElementById('removeBtn');
+      removeBtn.style.display = (me.is_admin && m.id !== me.id) ? 'block' : 'none';
+      removeBtn.onclick = async () => {
+        if (!confirm(`Remove ${m.name}?`)) return;
+        await sb.from('members').delete().eq('id', m.id);
+        document.getElementById('detail').classList.add('hidden');
+        document.getElementById('dashboard').classList.remove('hidden');
+        loadMembers();
+      };
     }
 
+    document.getElementById('backBtn').onclick = () => {
+      document.getElementById('detail').classList.add('hidden');
+      document.getElementById('dashboard').classList.remove('hidden');
+    };
+
+    // Restore
     const saved = localStorage.getItem('qs_member');
     const savedCode = localStorage.getItem('qs_party');
     if (saved && savedCode) {
       me = JSON.parse(saved);
-      enterApp(savedCode);
+      enterApp();
     }
   </script>
 </body>
