@@ -1,6 +1,5 @@
 // QuitSmoke - Party Mode
 let me = null;
-
 document.getElementById('tabJoin').onclick = () => switchTab('join');
 document.getElementById('tabCreate').onclick = () => switchTab('create');
 
