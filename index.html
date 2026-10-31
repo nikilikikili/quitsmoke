@@ -13,49 +13,45 @@
 </head>
 <body>
   <div id="app">
-    <!-- AUTH SCREEN -->
-    <section id="auth" class="screen">
+    <section id="join" class="screen">
       <h1>QuitSmoke</h1>
       <p class="tagline">Jedan dan u isto vrijeme</p>
 
       <div class="tabs">
-        <button id="tabLogin" class="active">Prijava</button>
-        <button id="tabRegister">Registracija</button>
+        <button id="tabJoin" class="active">Pridruži se</button>
+        <button id="tabCreate">Napravi party</button>
       </div>
 
-      <div id="loginForm">
-        <input type="email" id="loginEmail" placeholder="Email" />
-        <input type="password" id="loginPass" placeholder="Lozinka" />
-        <button id="loginBtn">Prijavi se</button>
+      <div id="joinForm">
+        <input type="text" id="joinCode" placeholder="Party kod (npr. 48291)" maxlength="6" />
+        <input type="text" id="joinName" placeholder="Tvoje ime" />
+        <button id="joinBtn">Uđi</button>
       </div>
 
-      <div id="registerForm" class="hidden">
-        <input type="text" id="regUsername" placeholder="Korisničko ime" />
-        <input type="email" id="regEmail" placeholder="Email" />
-        <input type="password" id="regPass" placeholder="Lozinka" />
-        <button id="registerBtn">Registruj se</button>
+      <div id="createForm" class="hidden">
+        <input type="text" id="createName" placeholder="Tvoje ime" />
+        <button id="createBtn">Napravi party</button>
       </div>
       <p id="authError" class="error"></p>
     </section>
 
-    <!-- DASHBOARD -->
     <section id="dashboard" class="screen hidden">
       <header>
         <div>
           <h2 id="welcome">Zdravo</h2>
-          <div id="levelBadge">Level 1</div>
+          <div id="partyCode">Kod: ----</div>
         </div>
-        <button id="logoutBtn" class="small">Odjava</button>
+        <button id="logoutBtn" class="small">Izađi</button>
       </header>
 
       <div class="card hero">
         <div class="label">Od zadnje cigarete</div>
         <div id="timeCounter" class="big-number">0d 0h 0m</div>
-        <div id="levelProgress">Do sljedećeg levela: 12h</div>
+        <div id="levelBadge">Level 1</div>
       </div>
 
       <div class="lungs-container">
-        <div class="lungs" id="lungsVisual">
+        <div class="lungs">
           <div class="lung left"></div>
           <div class="lung right"></div>
         </div>
@@ -65,7 +61,7 @@
       <div class="stats-grid">
         <div class="card stat">
           <div class="stat-value" id="cigsAvoided">0</div>
-          <div class="stat-label">Izbjegnutih cigareta</div>
+          <div class="stat-label">Izbjegnutih</div>
         </div>
         <div class="card stat">
           <div class="stat-value" id="moneySaved">$0</div>
@@ -76,15 +72,9 @@
       <button id="logCigBtn" class="danger">Zapali sam cigaretu</button>
 
       <div class="card">
-        <h3>Prijatelji</h3>
-        <div class="add-friend">
-          <input type="text" id="friendUsername" placeholder="Korisničko ime prijatelja" />
-          <button id="addFriendBtn">Dodaj</button>
-        </div>
-        <div id="friendsList"></div>
+        <h3>Party</h3>
+        <div id="membersList"></div>
       </div>
-
-      <button id="settingsBtn" class="secondary">Podešavanja</button>
     </section>
   </div>
 
